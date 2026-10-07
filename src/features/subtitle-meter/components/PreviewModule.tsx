@@ -1,6 +1,8 @@
 import type { SubtitleCue } from "../models";
+import { toPlainText } from "../parsers/markup";
 export function PreviewModule({ cue }: { cue?: SubtitleCue }) {
-  const lines = cue?.text.split("\n") ?? [];
+  const plain = cue ? toPlainText(cue.text) : "";
+  const lines = cue ? plain.split("\n") : [];
   return (
     <section className="module preview-module">
       <div className="module-head">
@@ -26,7 +28,7 @@ export function PreviewModule({ cue }: { cue?: SubtitleCue }) {
       </div>
       <div className="preview-meta">
         <span>{lines.length || 0} 行字幕</span>
-        <span>{cue ? [...cue.text.replace(/\s/g, "")].length : 0} 字符</span>
+        <span>{cue ? [...plain.replace(/\s/g, "")].length : 0} 字符</span>
         <span>底部居中</span>
       </div>
     </section>

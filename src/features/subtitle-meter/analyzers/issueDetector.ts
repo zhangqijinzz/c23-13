@@ -1,4 +1,5 @@
 import type { SubtitleCue, SubtitleIssue } from "../models";
+import { toPlainText } from "../parsers/markup";
 export function detectIssues(cues: SubtitleCue[]): SubtitleIssue[] {
   const issues: SubtitleIssue[] = [];
   const add = (
@@ -16,9 +17,11 @@ export function detectIssues(cues: SubtitleCue[]): SubtitleIssue[] {
     });
   const ordered = [...cues].sort((a, b) => a.startMs - b.startMs);
   ordered.forEach((cue, i) => {
+    // 统计口径只看播放器真正显示的文本：去掉内联标签、解码实体后再计数
+    const plain = toPlainText(cue.text);
     const duration = cue.endMs - cue.startMs,
-      chars = [...cue.text.replace(/\s/g, "")].length;
-    if (!cue.text.trim()) add(cue, "empty", "error", "字幕文本为空");
+      chars = [...plain.replace(/\s/g, "")].length;
+    if (!plain.trim()) add(cue, "empty", "error", "字幕文本为空");
     if (duration <= 0)
       add(cue, "invalid-time", "error", "结束时间必须晚于开始时间");
     else {
@@ -33,7 +36,7 @@ export function detectIssues(cues: SubtitleCue[]): SubtitleIssue[] {
       if (cps > 18)
         add(cue, "too-fast", "warning", `阅读速度 ${cps.toFixed(1)} 字/秒`);
     }
-    if (chars > 42 || cue.text.split("\n").length > 2)
+    if (chars > 42 || plain.split("\n").length > 2)
       add(
         cue,
         "too-long",
