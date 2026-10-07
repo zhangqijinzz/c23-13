@@ -1,11 +1,13 @@
-import type { Format, SubtitleCue } from "../models";
+import type { Format, SubtitleCue, SubtitleDefinition } from "../models";
 import { formatSubtitles } from "../formatters/subtitleFormatter";
+
 export function downloadSubtitles(
   name: string,
   cues: SubtitleCue[],
   format: Format,
+  definitions?: SubtitleDefinition[],
 ): void {
-  const blob = new Blob([formatSubtitles(cues, format)], {
+  const blob = new Blob([formatSubtitles(cues, format, definitions)], {
     type:
       format === "vtt" ? "text/vtt;charset=utf-8" : "text/plain;charset=utf-8",
   });

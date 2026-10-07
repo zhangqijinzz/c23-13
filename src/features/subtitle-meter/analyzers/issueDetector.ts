@@ -17,7 +17,8 @@ export function detectIssues(cues: SubtitleCue[]): SubtitleIssue[] {
   const ordered = [...cues].sort((a, b) => a.startMs - b.startMs);
   ordered.forEach((cue, i) => {
     const duration = cue.endMs - cue.startMs,
-      chars = [...cue.text.replace(/\s/g, "")].length;
+      chars = [...cue.text.replace(/\s/g, "")].length,
+      lineCount = cue.text.split("\n").filter((line) => line.trim()).length;
     if (!cue.text.trim()) add(cue, "empty", "error", "字幕文本为空");
     if (duration <= 0)
       add(cue, "invalid-time", "error", "结束时间必须晚于开始时间");
@@ -33,7 +34,7 @@ export function detectIssues(cues: SubtitleCue[]): SubtitleIssue[] {
       if (cps > 18)
         add(cue, "too-fast", "warning", `阅读速度 ${cps.toFixed(1)} 字/秒`);
     }
-    if (chars > 42 || cue.text.split("\n").length > 2)
+    if (chars > 42 || lineCount > 2)
       add(
         cue,
         "too-long",

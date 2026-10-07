@@ -1,3 +1,5 @@
+import type { MarkupNode } from "./parsers/markup";
+
 export type Format = "srt" | "vtt";
 export interface SubtitleCue {
   id: string;
@@ -5,6 +7,12 @@ export interface SubtitleCue {
   startMs: number;
   endMs: number;
   text: string;
+  settings?: string;
+  markup?: MarkupNode[];
+}
+export interface SubtitleDefinition {
+  kind: "STYLE" | "REGION";
+  content: string;
 }
 export type IssueType =
   | "overlap"
@@ -25,6 +33,7 @@ export interface SubtitleProject {
   name: string;
   format: Format;
   cues: SubtitleCue[];
+  definitions?: SubtitleDefinition[];
   updatedAt: number;
   versions: Array<{
     id: string;

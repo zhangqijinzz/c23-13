@@ -7,10 +7,33 @@ import {
   type SubtitleCue,
   type SubtitleProject,
 } from "../models";
-import { detectFormat, parseSubtitles } from "../parsers/subtitleParser";
+import { detectFormat, parseSubtitleDocument } from "../parsers/subtitleParser";
+import { getVisibleText, parseMarkup, parsePlainText } from "../parsers/markup";
 import { projectRepository } from "../repositories/projectRepository";
 import { downloadSubtitles } from "../services/exportService";
 import { readTextFile } from "../services/fileService";
+
+function normalizeCue(cue: SubtitleCue): SubtitleCue {
+  if (cue.markup) return cue;
+  const markup = cue.text.includes("<")
+    ? parseMarkup(cue.text)
+    : parsePlainText(cue.text);
+  return { ...cue, text: getVisibleText(markup).trim(), markup };
+}
+
+function normalizeProject(project: SubtitleProject | null) {
+  if (!project) return null;
+  return {
+    ...project,
+    definitions: project.definitions ?? [],
+    cues: project.cues.map(normalizeCue),
+    versions: project.versions.map((version) => ({
+      ...version,
+      cues: version.cues.map(normalizeCue),
+    })),
+  };
+}
+
 export class SubtitleMeterViewModel {
   state: MeterState = emptyState();
   private listeners = new Set<() => void>();
@@ -43,7 +66,7 @@ export class SubtitleMeterViewModel {
   }
   async restore() {
     try {
-      const project = await projectRepository.load();
+      const project = normalizeProject(await projectRepository.load());
       if (project)
         this.publish({
           project,
@@ -61,18 +84,19 @@ export class SubtitleMeterViewModel {
     try {
       const format = detectFormat(file.name),
         text = await readTextFile(file),
-        cues = parseSubtitles(text, format);
+        document = parseSubtitleDocument(text, format);
       const project: SubtitleProject = {
         id: "subtitle-meter.current.v1",
         name: file.name,
         format,
-        cues,
+        cues: document.cues,
+        definitions: document.definitions,
         updatedAt: Date.now(),
         versions: [],
       };
       this.publish({
-        selectedId: cues[0].id,
-        notice: `已解析 ${cues.length} 条字幕`,
+        selectedId: document.cues[0].id,
+        notice: `已解析 ${document.cues.length} 条字幕`,
       });
       await this.commit(project, "ready");
     } catch (error) {
@@ -94,9 +118,12 @@ export class SubtitleMeterViewModel {
     patch: Partial<Pick<SubtitleCue, "text" | "startMs" | "endMs">>,
   ) {
     if (!this.state.project) return;
-    const cues = this.state.project.cues.map((cue) =>
-      cue.id === id ? { ...cue, ...patch } : cue,
-    );
+    const cues = this.state.project.cues.map((cue) => {
+      if (cue.id !== id) return cue;
+      const next = { ...cue, ...patch };
+      if (patch.text !== undefined) next.markup = parsePlainText(patch.text);
+      return next;
+    });
     await this.commit({ ...this.state.project, cues });
   }
   async saveVersion() {
@@ -126,8 +153,13 @@ export class SubtitleMeterViewModel {
     if (!project) return;
     this.publish({ phase: "exporting" });
     try {
-      formatSubtitles(project.cues, project.format);
-      downloadSubtitles(project.name, project.cues, project.format);
+      formatSubtitles(project.cues, project.format, project.definitions);
+      downloadSubtitles(
+        project.name,
+        project.cues,
+        project.format,
+        project.definitions,
+      );
       this.publish({ phase: "ready", notice: "字幕文件已导出" });
     } catch {
       this.publish({

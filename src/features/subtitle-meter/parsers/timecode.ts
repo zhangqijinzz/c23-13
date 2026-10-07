@@ -1,10 +1,15 @@
 export function parseTimestamp(value: string): number {
-  const match = value.trim().match(/^(\d{2,}):(\d{2}):(\d{2})[,.](\d{1,3})$/);
+  const trimmed = value.trim();
+  const match =
+    trimmed.match(/^(\d{1,}):(\d{1,2}):(\d{1,2})[,.](\d{1,3})$/) ??
+    trimmed.match(/^(\d{1,2}):(\d{1,2})[,.](\d{1,3})$/);
   if (!match) throw new Error(`无法解析时间码「${value}」`);
-  const [, h, m, s, fraction] = match;
-  const hours = Number(h),
-    minutes = Number(m),
-    seconds = Number(s);
+
+  const hasHours = match.length === 5;
+  const hours = Number(hasHours ? match[1] : 0),
+    minutes = Number(match[hasHours ? 2 : 1]),
+    seconds = Number(match[hasHours ? 3 : 2]),
+    fraction = match[hasHours ? 4 : 3];
   if (minutes > 59 || seconds > 59)
     throw new Error(`时间码超出范围「${value}」`);
   return (
